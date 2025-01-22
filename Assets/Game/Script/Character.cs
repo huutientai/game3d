@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Character : MonoBehaviour
 {
@@ -36,6 +37,17 @@ public class Character : MonoBehaviour
     private float attackAnimationDuration = 2f;
     public float SlideSpeed = 9f;
 
+    //stamina
+    public Image StaminaBar;
+    public float MaxStamina = 100f;
+    public float CurrentStamina;
+    public float StaminaRegenRate = 10f; // Tốc độ hồi stamina mỗi giây
+    //public float StaminaUsageRate = 20f; // Stamina tiêu hao cho mỗi hành động
+    //public float MinStaminaForAction = 10f; // Mức stamina tối thiểu để thực hiện hành động
+    private bool IsRegeneratingStamina = true;
+    public float AttackStaminaCost = 30f; // Chi phí stamina cho Attacking
+    public float SlideStaminaCost = 20f; // Chi phí stamina cho Slide
+
     //State Machine
     public enum CharacterState
     {
@@ -53,6 +65,9 @@ public class Character : MonoBehaviour
     public GameObject ItemToDrop;
     private void Awake()
     {
+        //test stamana
+        CurrentStamina = MaxStamina;
+        //old
         _cc = GetComponent<CharacterController>();
         _animator = GetComponent<Animator>();
         _health = GetComponent<Health>();
@@ -256,7 +271,7 @@ private void FixedUpdate()
                 break;
             case CharacterState.Attacking:
 
-                if (!IsPlayer) 
+                /*if (!IsPlayer) 
                 {
                     Quaternion newRotation = Quaternion.LookRotation(TargetPlayer.position - transform.position);
                     transform.rotation = newRotation;
@@ -268,7 +283,34 @@ private void FixedUpdate()
                     attackStartTime = Time.time;
                     RotateToCursor();
                 }
+                break;*/
+                // Kiểm tra stamina trước khi thực hiện tấn công
+                if (CurrentStamina >= AttackStaminaCost)
+                {
+                    CurrentStamina -= AttackStaminaCost; // Trừ stamina
+                    Debug.Log("Stamina reduced for Attacking: " + AttackStaminaCost);
+
+                    if (!IsPlayer)
+                    {
+                        Quaternion newRotation = Quaternion.LookRotation(TargetPlayer.position - transform.position);
+                        transform.rotation = newRotation;
+                    }
+                    _animator.SetTrigger("Attack");
+
+                    if (IsPlayer)
+                    {
+                        attackStartTime = Time.time;
+                        RotateToCursor();
+                    }
+                }
+                else
+                {
+                    Debug.Log("Not enough stamina to attack!");
+                    // Có thể không chuyển sang trạng thái Attacking nếu stamina không đủ
+                    return;
+                }
                 break;
+
             case CharacterState.Dead:
                     _cc.enabled = false;
                 _animator.SetTrigger("Dead");
@@ -291,7 +333,22 @@ private void FixedUpdate()
                 }
                 break ;
             case CharacterState.Slide:
-                _animator.SetTrigger("Slide");
+                /*_animator.SetTrigger("Slide");
+                break;*/
+                // Kiểm tra stamina trước khi thực hiện Slide
+                if (CurrentStamina >= SlideStaminaCost)
+                {
+                    CurrentStamina -= SlideStaminaCost; // Trừ stamina
+                    Debug.Log("Stamina reduced for Slide: " + SlideStaminaCost);
+
+                    _animator.SetTrigger("Slide");
+                }
+                else
+                {
+                    Debug.Log("Not enough stamina to slide!");
+                    // Có thể không chuyển sang trạng thái Slide nếu stamina không đủ
+                    return;
+                }
                 break;
 
             case CharacterState.Spawn:
@@ -498,4 +555,24 @@ private void FixedUpdate()
             transform.rotation = Quaternion.LookRotation(cursorPos - transform.position, Vector3.up);
         }
     }
+    //hoiphup
+    private void Update()
+    {
+        if (IsRegeneratingStamina && CurrentStamina < MaxStamina)
+        {
+            CurrentStamina += StaminaRegenRate * Time.deltaTime;
+            CurrentStamina = Mathf.Min(CurrentStamina, MaxStamina); // Đảm bảo không vượt quá giới hạn
+        }
+
+        // Khi đang thực hiện hành động, ngừng hồi stamina
+        if (CurrentState == CharacterState.Attacking || CurrentState == CharacterState.Slide)
+        {
+            IsRegeneratingStamina = false;
+        }
+        else
+        {
+            IsRegeneratingStamina = true;
+        }
+    }
+
 }
